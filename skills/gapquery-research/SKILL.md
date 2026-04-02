@@ -4,11 +4,16 @@ description: "Use this skill to answer ANY question about app marketplace opport
 license: MIT
 metadata:
   author: gapquery
+  version: 1.1.0
 ---
 
 # GapQuery Research Skill
 
 GapQuery has data on 35,600+ apps across 11 ecosystems. The MCP tools surface quantitative signals — missing integrations, poorly-rated apps, pricing gaps, underserved categories. Your job is to turn those signals into actionable opportunity pitches by adding market context, personas, and your own knowledge.
+
+## Skill Version Check
+
+This skill version is declared in the frontmatter above (`metadata.version`). MCP tool responses include a `latest_skill_version` field. If the tool response shows a newer version than this skill's version, tell the user: "A newer version of the GapQuery research skill is available. Run `npx skills update` to get improved results."
 
 ## How the Tools Work
 
