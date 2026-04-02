@@ -31,6 +31,8 @@ Route the user's query based on keywords. When in doubt, use the Guided Prompt p
 
 | Keywords in Query | Route To | Tool |
 |---|---|---|
+| User has a specific **app idea or category** ("I want to build a time tracking app", "invoice app opportunities", "CRM for X") | Category Exploration | See "Category-Specific Discovery" below |
+| User names a **specific ecosystem** ("what should I build for Shopify?") but no category | Guided Prompt | `discover-opportunities` (no mode) for that ecosystem |
 | "integration", "connector", "connect", "bridge", "sync" | Integration Discovery | `analyze-integrations` (no focus) |
 | "disruption", "disrupt", "replace", "competitor", "alternative", "better than" | Disruption Discovery | `find-disruption-targets` (no focus) |
 | "price", "pricing", "affordable", "expensive", "cheap", "cost" | Pricing Discovery | `find-price-gaps` (no focus) |
@@ -39,6 +41,22 @@ Route the user's query based on keywords. When in doubt, use the Guided Prompt p
 | "research", "investigate", "deep dive", "build/skip", "verdict", or a specific opportunity name | Research Workflow | See Research section below |
 | "show me", "list", "what are the", "compare", "table", "data" | Raw Data | Call tool with default focus to skip guided prompt (see `references/tools.md`) |
 | No dimension-specific keywords | Guided Prompt | `discover-opportunities` (no mode) |
+
+### Category-Specific Discovery (Most Common Query Type)
+
+When a user says "I want to build a [category] app" or "Where are the [category] opportunities?", they have a specific app type in mind but don't know which ecosystem to target. This is the most common and most valuable query type.
+
+**Do NOT just call `search-apps` repeatedly.** That returns raw listings with no analysis. Instead, follow this workflow:
+
+1. **Scan the most relevant ecosystems in parallel.** Call `search-apps` for 3-4 ecosystems where this category matters most (use your knowledge to pick — e.g., time tracking matters in QuickBooks, Xero, Monday.com, Slack; NOT Shopify or WordPress). Use specific search terms that match the category precisely (e.g., "timesheet employee hours" not just "time tracking" which returns irrelevant order tracking results).
+
+2. **Run `discover-opportunities` with `mode: "comprehensive"` on the 1-2 most promising ecosystems** from step 1 — the ones with weak incumbents, few apps, or low ratings. This gives you scored, multi-dimensional signals (disruption scores, pricing gaps, integration gaps, temporal trends) that search-apps alone cannot provide.
+
+3. **Use dimension-specific tools to drill deeper.** Call `find-disruption-targets` for ecosystems with poorly-rated incumbents. Call `find-price-gaps` if incumbents are expensive. Call `find-negative-space` if the category barely exists.
+
+4. **Present 3-5 opportunity cards** ranked by signal strength, each targeting a different ecosystem or angle. Always include: which ecosystem, why it's the best fit, what the incumbent weaknesses are, who the target user is.
+
+**Key rule: Always use at least one analytical tool (`discover-opportunities`, `find-disruption-targets`, `find-price-gaps`, `find-negative-space`) — don't rely solely on `search-apps`.** The analytical tools surface signals that raw search results don't show.
 
 ---
 
