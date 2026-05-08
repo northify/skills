@@ -4,7 +4,7 @@ description: "Use this skill to answer ANY question about app marketplace opport
 license: MIT
 metadata:
   author: gapquery
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # GapQuery Research Skill
@@ -43,6 +43,7 @@ Route the user's query based on keywords. When in doubt, use the Guided Prompt p
 | "price", "pricing", "affordable", "expensive", "cheap", "cost" | Pricing Discovery | `find-price-gaps` (no focus) |
 | "underserved", "quality", "low rated", "poorly rated", "few apps", "neglected" | Underserved Discovery | `discover-opportunities` (mode: "comprehensive"), filter for underserved signals |
 | "industry", "vertical", "niche", "sector", or specific industry names | Industry Gap Discovery | `discover-opportunities` (mode: "comprehensive"), filter for industry_gap signals |
+| "category overview", "category data", "marketplace dashboard", "review per app", "reviews per app", "average rating per category", "average price per category", "show me categories", or any single-ecosystem category-level table request | Marketplace Mental Model | `category-overview` |
 | "research", "investigate", "deep dive", "build/skip", "verdict", or a specific opportunity name | Research Workflow | See Research section below |
 | "show me", "list", "what are the", "compare", "table", "data" | Raw Data | Call tool with default focus to skip guided prompt (see `references/tools.md`) |
 | No dimension-specific keywords | Guided Prompt | `discover-opportunities` (no mode) |
@@ -128,7 +129,7 @@ Use this structure for all discovery results. Adapt the header and fields to mat
 
 ```
 ### 1. [Creative Name]: [What It Is]
-**Type**: [Integration / Disruption Target / Pricing Gap / Underserved / Industry Gap] | **Key Metric**: [relevant stat]
+**Type**: [Integration / Disruption Target / Pricing Gap / Underserved / Industry Gap / Negative Space] | **Key Metric**: [relevant stat]
 
 **The Opportunity**: [2-3 sentences. What would you build? Describe specific
 workflows, not vague "sync data." What triggers what? What data flows where?]
@@ -136,8 +137,13 @@ workflows, not vague "sync data." What triggers what? What data flows where?]
 **Why There's Demand**: [Evidence — user counts, review complaints, workaround
 mentions, Zapier usage. NOT just "zero apps exist."]
 
+**Evidence (negative-space cards only)**: [At least one direct quote from the
+tool's `excerpts` array. Format: > "[exact insight_text]" — [source_app] · [insight_type, confidence]
+Followed by 1-2 sentences interpreting what the user is actually doing today.]
+
 **Current Workaround**: [How people solve this today. Be specific — what's
-painful about it? How many hours does it waste?]
+painful about it? How many hours does it waste? Use the workaround `metadata`
+fields (manual_step, frequency_signal) when present.]
 
 **Target Persona**: [Specific person — job title, company size, how often they
 hit this problem, what they'd pay for a fix]
@@ -145,6 +151,8 @@ hit this problem, what they'd pay for a fix]
 **Why Now**: [What's changed recently that creates a window? Why hasn't this
 been built before?]
 ```
+
+**For negative-space results specifically:** if the tool's response includes `excerpts` for the workflow, you MUST quote at least one in the Evidence line. A negative-space card without a quoted excerpt is incomplete — that was the original "vague workflow" failure mode we're addressing. If the excerpts array is empty (rare), say so explicitly: "*No matching review insights yet — workflow inferred from category names alone.*"
 
 ### Synthesis Patterns
 
@@ -197,21 +205,37 @@ Conduct thorough research using web search, analysis, and reasoning. Don't fabri
 
 Call `save-research` with the opportunity slug, verdict, executive summary, and all 6 analysis areas. Read `references/tools.md` for the full parameter reference.
 
+**Sources are required.** Step C must include at least 3 entries in the `sources` array. Acceptable sources:
+- App Store URLs of incumbents and competitors mentioned
+- Marketplace category URLs you browsed
+- Public pricing pages
+- Reddit threads, blog posts, or forum discussions about the pain point
+- Documentation pages for any APIs or integrations referenced
+
+A research record without sources looks unsupported on the web app and undermines the verdict. If `save-research` returns a `warnings` array mentioning sources, that means you saved with too few — go back and add real citations rather than ignoring the warning.
+
 If `save-research` is unavailable, use `save-opportunity` with the verdict and research fields as a fallback.
 
-### Step D: Generate Quick Summary Brief
+### Step D: Generate Quick Summary Brief (REQUIRED — do not skip)
 
-After saving research, call `save-research` again with a `summary` object that distills the research into a scannable card:
+After Step C succeeds, you **must** make a second `save-research` call with **only** `opportunity_slug` and `summary`. Do not re-send any other Step C fields — the tool detects this as a summary-only update and writes only the summary while preserving everything else.
 
 ```json
 {
-  "one_liner": "1 sentence, verdict + key reason (max 150 chars)",
-  "key_strengths": ["reason TO build 1", "reason TO build 2", "reason TO build 3"],
-  "key_risks": ["reason NOT to build 1", "reason NOT to build 2", "reason NOT to build 3"],
-  "recommended_action": "1 sentence, most important next step (max 150 chars)",
-  "effort_estimate": "2-4 weeks, medium complexity"
+  "opportunity_slug": "<same slug as Step C>",
+  "summary": {
+    "one_liner": "1 sentence, verdict + key reason (max 150 chars)",
+    "key_strengths": ["reason TO build 1", "reason TO build 2", "reason TO build 3"],
+    "key_risks": ["reason NOT to build 1", "reason NOT to build 2", "reason NOT to build 3"],
+    "recommended_action": "1 sentence, most important next step (max 150 chars)",
+    "effort_estimate": "2-4 weeks, medium complexity"
+  }
 }
 ```
+
+A successful Step D returns `mode: "summary_only"` and `message: "Summary brief saved..."`. If you see a normal "Research saved" response, you accidentally re-sent the full payload — the second save overwrote Step C with whatever you sent. Reissue the call with only `opportunity_slug` and `summary`.
+
+The summary brief is what powers the Quick Summary flyout in the web app. Skipping Step D leaves the user looking at "no summary" on the page even after a successful research run.
 
 Then update the opportunity status via `save-opportunity` with `status` and `build_complexity`.
 

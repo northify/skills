@@ -14,9 +14,10 @@
 | `find-combination-gaps` | Feature coverage gaps a single new app could fill | No |
 | `find-developer-whitespace` | Successful devs in ecosystem A who haven't entered B | No |
 | `find-cross-ecosystem-patterns` | Categories/developers successful in one ecosystem but missing in another | No |
-| `find-negative-space` | Workflows users need but no app addresses | No |
+| `find-negative-space` | Workflows users need but no app addresses. Each row now includes up to 5 actual review-insight excerpts (workarounds, feature requests, pain points) with confidence and source app — quote these instead of guessing what the mention counts mean | No |
 | `find-nascent-ecosystems` | Growing platforms with low saturation — early mover territory | No |
 | `compare-ecosystems` | Side-by-side metrics for any set of ecosystems | No |
+| `category-overview` | Per-category breakdown for ONE ecosystem: app_count, avg_rating, total_reviews, reviews_per_app, avg/cheapest/most-expensive monthly price, free_tier_count. Sortable + filterable. Use this when the user wants a marketplace mental-model dashboard (NOT cross-ecosystem) | No |
 | `search-apps` | Full-text search across all ecosystems — check existing competition | No |
 
 Use `list-opportunities` to see all saved opportunities (or pass `slug` for full details).
@@ -110,6 +111,39 @@ The `summary` field is displayed in the web app's Quick Summary flyout:
 - `recommended_action`: 1 sentence, most important next step (max 150 chars)
 - `effort_estimate`: e.g. "2-4 weeks, medium complexity"
 
+### Step D — Saving the Summary Brief (Two-Call Pattern)
+
+The summary should be saved via a **second** `save-research` call with only `opportunity_slug` and `summary`. The tool detects this pattern and writes only the summary, preserving everything saved in Step C.
+
+```jsonc
+// Step C — full save
+{
+  "opportunity_slug": "shopify-multi-store-bulk-product-editor",
+  "verdict": "build",
+  "executive_summary": "...",
+  "verdict_reasoning": "...",
+  "pros": [...],
+  "cons": [...],
+  "revenue_analysis": {...},
+  "market_analysis": {...}
+  // ... all six analysis areas
+}
+
+// Step D — summary-only update (different call!)
+{
+  "opportunity_slug": "shopify-multi-store-bulk-product-editor",
+  "summary": {
+    "one_liner": "...",
+    "key_strengths": [...],
+    "key_risks": [...],
+    "recommended_action": "...",
+    "effort_estimate": "..."
+  }
+}
+```
+
+A successful Step D returns `mode: "summary_only"`. **Do not** include the summary inside the Step C call and skip Step D — the web app's Quick Summary flyout reads only what Step D writes.
+
 ---
 
 ## Research Quality Guidelines
@@ -122,3 +156,41 @@ The `summary` field is displayed in the web app's Quick Summary flyout:
 - **Competition**: Name specific competitors with their pricing, ratings, and user counts. Don't say "several competitors exist."
 - **Technical**: Identify specific APIs, SDKs, and known limitations. Estimate dev time realistically.
 - **Sources**: Include actual URLs visited during research. Minimum 3 sources.
+
+---
+
+## Pagination Contract (5 tools)
+
+`find-keyword-opportunities`, `find-category-gaps`, `find-combination-gaps`, `find-developer-whitespace`, `find-nascent-ecosystems`, and `category-overview` all follow the same pagination contract. So does `find-negative-space` for its excerpts.
+
+| Field in response | Meaning |
+|---|---|
+| `count` | Rows returned in this call |
+| `total_count` | Rows that match the query, regardless of pagination |
+| `truncated` | `true` if there are more rows past `offset + count` |
+| `pagination.limit` | Cap requested (default 50, max 200) |
+| `pagination.offset` | Offset used for this call |
+| `pagination.next_offset` | Pass this back as `offset` to fetch the next page; `null` on last page |
+| `truncated_reason` | `"size_guard:trimmed_heavy_fields"` or `"size_guard:halved_rows"` if the response was trimmed for token-budget reasons (separate from pagination truncation) |
+
+When the user asks "show me more" or asks for a deeper slice, call the same tool with `offset = pagination.next_offset`. **Filter parameters (min/max thresholds, persona, tag_type, etc.) are usually more useful than paginating** — narrow by the user's thesis rather than walking through the long tail.
+
+If you see `truncated_reason: "size_guard:halved_rows"`, the response was trimmed because individual rows were unusually heavy. Ask for filtered or narrower results rather than paginating — pagination won't help if rows themselves are big.
+
+---
+
+## Negative-Space Excerpts
+
+`find-negative-space` returns up to 5 review-insight excerpts per workflow row by default. Each excerpt has:
+
+- `text` — the actual user review snippet (your evidence to quote)
+- `insight_type` — `"workaround"` (highest signal — proves manual fallback exists), `"feature_request"`, or `"pain_point"`
+- `confidence` — 0-1 from the AI mining pass
+- `metadata` — for workarounds: `manual_step`, `frequency_signal`, `tool_mentioned`, `automation_potential`
+- `source_app` — slug of the app whose review this is from (link out)
+
+Excerpts come ordered: workarounds first, then feature_requests, then pain_points; within each type by confidence DESC.
+
+**Always quote at least one excerpt when presenting a negative-space card.** A card without quoted user voice is the exact "vague workflow" complaint we're trying to fix. Use the metadata fields to add specificity ("...users mention this happens *every SKU update*").
+
+Pass `include_excerpts: false` only when you need a lighter response for a token-tight pass; the default is to include them.
