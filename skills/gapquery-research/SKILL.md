@@ -4,7 +4,7 @@ description: "Use this skill to answer ANY question about app marketplace opport
 license: MIT
 metadata:
   author: gapquery
-  version: 1.2.0
+  version: 1.2.1
 ---
 
 # GapQuery Research Skill
@@ -13,7 +13,9 @@ GapQuery has data on 35,600+ apps across 11 ecosystems. The MCP tools surface qu
 
 ## Skill Version Check
 
-This skill version is declared in the frontmatter above (`metadata.version`). MCP tool responses include a `latest_skill_version` field. If the tool response shows a newer version than this skill's version, tell the user: "A newer version of the GapQuery research skill is available. Run `npx skills update` to get improved results."
+This skill version is declared in the frontmatter above (`metadata.version`). MCP tool responses include a `latest_skill_version` field. If the tool response shows a newer version than this skill's version, tell the user: "A newer version of the GapQuery research skill is available. Run `npx skills add northify/skills -y` to update."
+
+(Note: `npx skills update` works only for skills installed by recent versions of the `skills` CLI. The `add` command above always works, regardless of when the skill was first installed.)
 
 ## How the Tools Work
 
